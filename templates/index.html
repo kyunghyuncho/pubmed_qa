@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PubMed Abstracts Search</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="{{ url_for('static', filename='scripts.js') }}"></script>
+    <style>
+        .article-content {
+            white-space: pre-wrap; /* Enable line-wrapping for long text */
+            word-wrap: break-word; /* Prevent overflow of unbroken words */
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center">PubMed Abstracts Search</h1>
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <form id="search-form">
+                    <div class="form-group">
+                        <label for="question">Enter your question:</label>
+                        <input type="text" class="form-control" id="question" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="summary_box">Summary of Findings:</label>
+                        <textarea class="form-control" id="summary_box" rows="4" readonly></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Search</button>
+                </form>
+            </div>
+        </div>
+        <div class="row justify-content-center mt-4">
+            <div class="col-md-8">
+                <h4>Abstracts</h4>
+                <div id="abstracts" class="p-3 bg-light border article-content"></div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
