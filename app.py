@@ -1,6 +1,9 @@
 from litgpt_wrapper import load_model, generate_candidate, promptify
 from pathlib import Path
 
+import spacy
+from collections import Counter
+
 import string
 
 from flask import Flask, render_template, request, jsonify
@@ -14,6 +17,9 @@ fabric, model, tokenizer = load_model(Path('./checkpoints/google/gemma-2b-it'), 
 
 # Create a translation table that maps all punctuation to None
 translator = str.maketrans('', '', string.punctuation)
+
+# Load the small English model
+nlp = spacy.load('en_core_web_sm')
 
 # PubMed E-utilities URLs
 EUTILS_BASE_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
@@ -92,18 +98,21 @@ def get_abstracts():
         for title, authors, abstract, year in articles
     ]
 
-    # Combine all abstracts for summarization
-    # Do it one abstract at a time until we hit the limit of 2,000 words
+    # Combine all abstracts for summarization.
+    # Do it one abstract at a time until we hit the limit of 2,000 words.
+    # TODO: parallelize it.
     combined_abstracts = ""
     for article in response_data:
         abstract_summary = generate_candidate(fabric, model, tokenizer,
-                                     "Please summarize the context into two bullet points, "
+                                     "Please summarize the context into two sentences, "
                                      + "while considering the question. "
                                      + "Write a professional answer. "
-                                     + "Do not converse with the user.", 
+                                     + "Do not converse with the user. ", 
                                      query, article['abstract'])
         combined_abstracts += "\n\n"
         combined_abstracts += abstract_summary
+
+        print(f'Abstract summary: {abstract_summary}')
 
     # remove any line that starts with "Sure"
     combined_abstracts = "\n".join([line for line in combined_abstracts.split("\n") if not line.startswith("Sure")])
@@ -112,9 +121,12 @@ def get_abstracts():
     # remove any empty line
     combined_abstracts = "\n".join([line for line in combined_abstracts.split("\n") if line.strip()])
 
-    print(f'Combined abstracts: {combined_abstracts}')
+    # print(f'Combined abstracts: {combined_abstracts}')
 
     summary = generate_summary(query, combined_abstracts) if combined_abstracts else "No sufficient data for summarization."
+
+    print(f'Summary: {summary}')
+
     # remove any line that starts with "Sure,"
     summary = "\n".join([line for line in summary.split("\n") if not line.startswith("Sure,")])
 
@@ -126,19 +138,23 @@ def extract_terms():
     if not question:
         return jsonify({"error": "No question provided"}), 400
 
-    rewritten_query = generate_candidate(fabric, model, tokenizer, 
-                                         "Do not include any punctuation or special characters. "
-                                         +"Do not include anything other than the entity list. ",
-                                         f"Please list all potential search terms from \"{question}\".",
-                                         top_k=5)
-                                         
-    rewritten_query = rewritten_query.translate(translator).split()
+    keywords = extract_keywords(question)
 
     print(f'Original query: {question}')
-    print(f'Rewritten query: {rewritten_query}')
+    print(f'Keywords: {keywords}')
 
-    return jsonify({"terms": rewritten_query})
+    return jsonify({"terms": keywords})
 
+# Function to extract keywords
+def extract_keywords(text, top_n=10):
+    # Process the input text with spaCy
+    doc = nlp(text)
+
+    # Filter out stop words and punctuation, and keep only nouns and proper nouns
+    filtered_tokens = [token.text for token in doc if not token.is_stop and not token.is_punct and token.pos_ in ['NOUN', 'PROPN']]
+
+    # Use Counter to get the most common tokens
+    return [word for word, count in Counter(filtered_tokens).most_common(top_n)]
 
 if __name__ == '__main__':
     app.run(debug=False, port=8000)

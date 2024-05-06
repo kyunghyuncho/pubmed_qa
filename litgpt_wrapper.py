@@ -62,9 +62,9 @@ def promptify(instruction: str,
               question: str,
               context: Optional[str] = None):
     if context is None:
-        return f"###### Instruction: {instruction}\n\n###### Question: {question}\n\n###### Answer:"
+        return f"Instruction: {instruction}\n\nQuestion: {question}\n\nAnswer:"
     else:
-        return f"###### Instruction: {instruction}\n\n###### Question: {question}\n\n###### Context: {context}\n\n###### Answer:"
+        return f"Instruction: {instruction}\n\nQuestion: {question}\n\nContext: {context}\n\nAnswer:"
 
 # Generate from the model given a prompt
 def generate_candidate(fabric, model, tokenizer, instruction, question, context=None, top_k=10):
@@ -76,7 +76,7 @@ def generate_candidate(fabric, model, tokenizer, instruction, question, context=
 
     output = tokenizer.decode(y)
     # split output at "\n\nAnswer:" and return the second part
-    output = output.split("\n\n###### Answer:")[1]
+    output = output.split("\n\nAnswer:")[1]
     # # split output at "\n\n" and return the first part
     # output = output.split("\n\n")[0]
 
