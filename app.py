@@ -1,6 +1,8 @@
 from litgpt_wrapper import load_model, generate_candidate, promptify
 from pathlib import Path
 
+import string
+
 from flask import Flask, render_template, request, jsonify
 import requests
 import xml.etree.ElementTree as ET
@@ -8,7 +10,10 @@ import xml.etree.ElementTree as ET
 app = Flask(__name__)
 
 # load the model
-fabric, model, tokenizer = load_model(Path('./checkpoints/microsoft/phi-1_5'), 1024)
+fabric, model, tokenizer = load_model(Path('./checkpoints/google/gemma-2b-it'), 4096)
+
+# Create a translation table that maps all punctuation to None
+translator = str.maketrans('', '', string.punctuation)
 
 # PubMed E-utilities URLs
 EUTILS_BASE_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
@@ -16,19 +21,10 @@ EFETCH_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
 
 def fetch_pubmed_abstracts(query):
     """Fetch abstracts from PubMed based on the given query and return structured tuples."""
-
-    rewritten_query = generate_candidate(fabric, model, tokenizer, 
-                                         "Please extract and list search terms from the following question. "
-                                         + "It must be the list of search terms that you would use to search for the answer to the question. "
-                                         + "Do not include any punctuation or special characters.", 
-                                         query)
-
-    print(f"Rewritten query: {rewritten_query}")
-
     # Retrieve the IDs of the articles
     search_params = {
         "db": "pubmed",
-        "term": rewritten_query,
+        "term": query,
         "retmode": "json",
         "retmax": 10
     }
@@ -71,8 +67,10 @@ def fetch_pubmed_abstracts(query):
 def generate_summary(query, abstracts):
     """Generate a summary for the given query and abstracts."""
     summary = generate_candidate(fabric, model, tokenizer,
-                                    "Please answer the following question based on the provided abstracts in one paragraph. "
-                                    + "Do not include any information that is not present in the abstracts.",
+                                    "Please answer the following question based on the provided context. "
+                                    + "Do not include any information that is not present in the context. "
+                                    + "Write a professional answer. "
+                                    + "Try your best within the information contained in the context.",
                                     query, abstracts)
     return summary
 
@@ -86,17 +84,61 @@ def get_abstracts():
     if not query:
         return jsonify({"error": "No query provided"}), 400
 
-    articles = fetch_pubmed_abstracts(query)
+    print(f'search terms: {request.json.get("search_terms")}')
+
+    articles = fetch_pubmed_abstracts(request.json.get('search_terms'))
     response_data = [
         {"title": title, "authors": authors, "abstract": abstract, "year": year}
         for title, authors, abstract, year in articles
     ]
 
     # Combine all abstracts for summarization
-    combined_abstracts = " ".join([article['abstract'] for article in response_data if article['abstract'] != "N/A"])
+    # Do it one abstract at a time until we hit the limit of 2,000 words
+    combined_abstracts = ""
+    for article in response_data:
+        abstract_summary = generate_candidate(fabric, model, tokenizer,
+                                     "Please summarize the context into two bullet points, "
+                                     + "while considering the question. "
+                                     + "Write a professional answer. "
+                                     + "Do not converse with the user.", 
+                                     query, article['abstract'])
+        combined_abstracts += "\n\n"
+        combined_abstracts += abstract_summary
+
+    # remove any line that starts with "Sure"
+    combined_abstracts = "\n".join([line for line in combined_abstracts.split("\n") if not line.startswith("Sure")])
+    # remove any line that starts with "Here's"
+    combined_abstracts = "\n".join([line for line in combined_abstracts.split("\n") if not line.startswith("Here's")])    
+    # remove any empty line
+    combined_abstracts = "\n".join([line for line in combined_abstracts.split("\n") if line.strip()])
+
+    print(f'Combined abstracts: {combined_abstracts}')
+
     summary = generate_summary(query, combined_abstracts) if combined_abstracts else "No sufficient data for summarization."
+    # remove any line that starts with "Sure,"
+    summary = "\n".join([line for line in summary.split("\n") if not line.startswith("Sure,")])
 
     return jsonify({"articles": response_data, "summary": summary})
 
+@app.route('/extract_terms', methods=['POST'])
+def extract_terms():
+    question = request.json.get('question')
+    if not question:
+        return jsonify({"error": "No question provided"}), 400
+
+    rewritten_query = generate_candidate(fabric, model, tokenizer, 
+                                         "Do not include any punctuation or special characters. "
+                                         +"Do not include anything other than the entity list. ",
+                                         f"Please list all potential search terms from \"{question}\".",
+                                         top_k=5)
+                                         
+    rewritten_query = rewritten_query.translate(translator).split()
+
+    print(f'Original query: {question}')
+    print(f'Rewritten query: {rewritten_query}')
+
+    return jsonify({"terms": rewritten_query})
+
+
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(debug=False, port=8000)

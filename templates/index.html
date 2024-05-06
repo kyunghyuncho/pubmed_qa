@@ -8,20 +8,36 @@
     <script src="{{ url_for('static', filename='scripts.js') }}"></script>
     <style>
         .article-content {
-            white-space: pre-wrap; /* Enable line-wrapping for long text */
-            word-wrap: break-word; /* Prevent overflow of unbroken words */
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .spinner-container {
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
         }
     </style>
 </head>
 <body>
-    <div class="container mt-5">
+    <div class="container mt-5" style="max-width: 1000px;">
         <h1 class="text-center">PubMed Abstracts Search</h1>
         <div class="row justify-content-center">
-            <div class="col-md-8">
+            <div class="col-lg-10">
                 <form id="search-form">
                     <div class="form-group">
                         <label for="question">Enter your question:</label>
                         <input type="text" class="form-control" id="question" required>
+                    </div>
+                    <button type="button" id="extract-terms" class="btn btn-secondary">Extract Search Terms</button>
+                    <div class="form-group mt-3">
+                        <label for="search_terms">Search Terms:</label>
+                        <input type="text" class="form-control" id="search_terms">
                     </div>
                     <div class="form-group">
                         <label for="summary_box">Summary of Findings:</label>
@@ -29,10 +45,15 @@
                     </div>
                     <button type="submit" class="btn btn-primary">Search</button>
                 </form>
+                <div class="spinner-container mt-3">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="row justify-content-center mt-4">
-            <div class="col-md-8">
+            <div class="col-lg-10">
                 <h4>Abstracts</h4>
                 <div id="abstracts" class="p-3 bg-light border article-content"></div>
             </div>

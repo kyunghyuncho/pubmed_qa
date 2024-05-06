@@ -18,7 +18,7 @@ from litgpt.prompts import has_prompt_style, load_prompt_style
 from litgpt.utils import CLI, check_valid_checkpoint_dir, get_default_supported_precision, load_checkpoint
 
 # Path to the checkpoint directory
-CHECKPOINT_DIR = './checkpoints/microsoft/phi-1_5'
+CHECKPOINT_DIR = './checkpoints/google/gemma-2b'
 
 MAX_RETURNED_TOKENS = 1024
 
@@ -67,17 +67,17 @@ def promptify(instruction: str,
         return f"###### Instruction: {instruction}\n\n###### Question: {question}\n\n###### Context: {context}\n\n###### Answer:"
 
 # Generate from the model given a prompt
-def generate_candidate(fabric, model, tokenizer, instruction, question, context=None):
+def generate_candidate(fabric, model, tokenizer, instruction, question, context=None, top_k=10):
     prompt = promptify(instruction, question, context)
 
     encoded = tokenizer.encode(prompt, device=fabric.device)
 
-    y = generate(model, encoded, MAX_RETURNED_TOKENS, top_k=10, eos_id=tokenizer.eos_id)
+    y = generate(model, encoded, MAX_RETURNED_TOKENS, top_k=top_k, eos_id=tokenizer.eos_id)
 
     output = tokenizer.decode(y)
     # split output at "\n\nAnswer:" and return the second part
     output = output.split("\n\n###### Answer:")[1]
-    # split output at "\n\n" and return the first part
-    output = output.split("\n\n")[0]
+    # # split output at "\n\n" and return the first part
+    # output = output.split("\n\n")[0]
 
     return output.strip()
