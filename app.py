@@ -73,11 +73,10 @@ def fetch_pubmed_abstracts(query):
 def generate_summary(query, abstracts):
     """Generate a summary for the given query and abstracts."""
     summary = generate_candidate(fabric, model, tokenizer,
-                                    "Please answer the following question based on the provided context. "
-                                    + "Do not include any information that is not present in the context. "
-                                    + "Write a professional answer. "
-                                    + "Try your best within the information contained in the context.",
-                                    query, abstracts)
+                                    "Please summarize the provided context in light of the following question. "
+                                    + "Create a bullet point list.",
+                                    query, 
+                                    abstracts)
     return summary
 
 @app.route('/')
@@ -104,24 +103,22 @@ def get_abstracts():
     combined_abstracts = ""
     for article in response_data:
         abstract_summary = generate_candidate(fabric, model, tokenizer,
-                                     "Please summarize the context into two sentences, "
-                                     + "while considering the question. "
-                                     + "Write a professional answer. "
-                                     + "Do not converse with the user. ", 
-                                     query, article['abstract'])
+                                     "Please summarize the context into a list of at most three bullet points. ", 
+                                     None,
+                                     article['abstract'])
         combined_abstracts += "\n\n"
         combined_abstracts += abstract_summary
 
-        print(f'Abstract summary: {abstract_summary}')
+        # print(f'Abstract summary: {abstract_summary}')
 
     # remove any line that starts with "Sure"
-    combined_abstracts = "\n".join([line for line in combined_abstracts.split("\n") if not line.startswith("Sure")])
+    combined_abstracts = "\n".join([line for line in combined_abstracts.split("\n") if "Sure," not in line])
     # remove any line that starts with "Here's"
-    combined_abstracts = "\n".join([line for line in combined_abstracts.split("\n") if not line.startswith("Here's")])    
+    combined_abstracts = "\n".join([line for line in combined_abstracts.split("\n") if "Here's" not in line])    
     # remove any empty line
     combined_abstracts = "\n".join([line for line in combined_abstracts.split("\n") if line.strip()])
 
-    # print(f'Combined abstracts: {combined_abstracts}')
+    print(f'Combined abstracts: {combined_abstracts}')
 
     summary = generate_summary(query, combined_abstracts) if combined_abstracts else "No sufficient data for summarization."
 

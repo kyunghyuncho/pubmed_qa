@@ -61,10 +61,18 @@ def load_model(checkpoint_dir = Path(CHECKPOINT_DIR),
 def promptify(instruction: str, 
               question: str,
               context: Optional[str] = None):
-    if context is None:
-        return f"Instruction: {instruction}\n\nQuestion: {question}\n\nAnswer:"
-    else:
-        return f"Instruction: {instruction}\n\nQuestion: {question}\n\nContext: {context}\n\nAnswer:"
+    prompt = ""
+    if context is not None:
+        prompt += f"Here is the context: {context}\n\n"
+
+    prompt += f"{instruction}\n\n"
+
+    if question is not None:
+        prompt += f"Please answer this question: {question}\n\n"
+    
+    prompt += "Answer:"
+
+    return prompt
 
 # Generate from the model given a prompt
 def generate_candidate(fabric, model, tokenizer, instruction, question, context=None, top_k=10):
