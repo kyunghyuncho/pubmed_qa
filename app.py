@@ -73,8 +73,10 @@ def fetch_pubmed_abstracts(query):
 def generate_summary(query, abstracts):
     """Generate a summary for the given query and abstracts."""
     summary = generate_candidate(fabric, model, tokenizer,
-                                    "Please summarize the provided context in light of the following question. "
-                                    + "Create a bullet point list.",
+                                    "Please summarize the provided list in light of the following question. "
+                                    + "Please create a bullet point list if possible. "
+                                    + "Do not give up even if there is not enough information. "
+                                    + "Answer the question to the best of your ability.",
                                     query, 
                                     abstracts)
     return summary
@@ -103,7 +105,7 @@ def get_abstracts():
     combined_abstracts = ""
     for article in response_data:
         abstract_summary = generate_candidate(fabric, model, tokenizer,
-                                     "Please summarize the context into a list of at most three bullet points. ", 
+                                     "Please summarize the context into a list of at most three bullet points. ",
                                      None,
                                      article['abstract'])
         combined_abstracts += "\n\n"

@@ -61,7 +61,18 @@ def load_model(checkpoint_dir = Path(CHECKPOINT_DIR),
 def promptify(instruction: str, 
               question: str,
               context: Optional[str] = None):
-    prompt = ""
+
+    # Gemma prompt style
+    # <start_of_turn>user
+    # knock knock<end_of_turn>
+    # <start_of_turn>model
+    # who is there<end_of_turn>
+    # <start_of_turn>user
+    # Gemma<end_of_turn>
+    # <start_of_turn>model
+    # Gemma who?<end_of_turn>
+
+    prompt = "<start_of_turn>user"
     if context is not None:
         prompt += f"Here is the context: {context}\n\n"
 
@@ -70,7 +81,8 @@ def promptify(instruction: str,
     if question is not None:
         prompt += f"Please answer this question: {question}\n\n"
     
-    prompt += "Answer:"
+    prompt += "<end_of_turn>"
+    prompt += "<start_of_turn>model\n"
 
     return prompt
 
@@ -84,8 +96,6 @@ def generate_candidate(fabric, model, tokenizer, instruction, question, context=
 
     output = tokenizer.decode(y)
     # split output at "\n\nAnswer:" and return the second part
-    output = output.split("\n\nAnswer:")[1]
-    # # split output at "\n\n" and return the first part
-    # output = output.split("\n\n")[0]
+    output = output.split("<start_of_turn>model\n")[1]
 
     return output.strip()
